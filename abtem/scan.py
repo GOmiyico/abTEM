@@ -82,6 +82,9 @@ def validate_scan(
 
 
 def _validate_scan_sampling(scan: ScanWithSampling, probe: Probe | BaseSMatrix):
+    """
+    Validate the sampling of the scan.Check if the sampling is None, and if so, set it to the Nyquist sampling of the probe. If the probe does not have a semiangle_cutoff attribute, raise a ValueError.
+    """
     if scan.sampling is None:
         if not hasattr(probe, "semiangle_cutoff"):
             raise ValueError()
@@ -944,14 +947,13 @@ class GridScan(HasGrid2DMixin, BaseScan):
     def _adjust_extent(self):
         if self.start is None or self.end is None:
             return
-
         self.extent = np.array(self.end) - self.start
 
     def match_probe(self, probe: Probe | BaseSMatrix):
         """
-        Sets sampling to the Nyquist frequency. If the start and end point of the scan
-        is not given, set them to the lower left and upper right corners of the probe
-        extent.
+        Sets sampling to the Nyquist frequency. If the start and end point of the
+        scan is not given, set them to the lower left and upper right corners of
+        the probe extent.
 
         Parameters
         ----------

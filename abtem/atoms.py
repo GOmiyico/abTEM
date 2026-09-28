@@ -20,6 +20,10 @@ axis_mapping = {"x": (1.0, 0.0, 0.0), "y": (0.0, 1.0, 0.0), "z": (0.0, 0.0, 1.0)
 
 def euler_sequence(axes: str, convention: str) -> tuple[int, int, int, int]:
     """
+    this function returns the sequence of axes and the convention for Euler angles based on the given axes and convention.
+
+    Euler angles are a way to represent the orientation of a rigid body in three-dimensional space using three angles. The order of rotations and the convention used can vary, leading to different representations of the same orientation.
+    
     Parameters
     ----------
     axes : str
@@ -761,31 +765,32 @@ def best_orthogonal_cell(
             + (ny[:, None] * b[None])[None, :, None]
             + (nz[:, None] * c[None])[None, None, :]
         )
-    )
+    )#vectors shape: (n,n,n,3)，abs使得vector直之间存在重复，丢弃了负数。
 
-    norm = np.linalg.norm(vectors, axis=-1)
+    norm = np.linalg.norm(vectors, axis=-1) #norm dim=3
     nonzero = norm > eps
     norm[nonzero == 0] = eps
-
+## 在有限重复范围内寻找最接近正交晶胞的整数晶格变换
     new_vectors = []
     for i in range(3):
-        angles = vectors[..., i] / norm
+        angles = vectors[..., i] / norm ## cos余弦值矩阵（dim=3），越小越接近正交，越大越接近平行
 
-        small_angles = np.abs(angles.max() - angles < eps)
+        # 粗筛出一批满足角度容差条件的基矢（返回三维BOOL数组）
+        small_angles = np.abs(angles.max() - angles < eps) 
 
-        small_angles = np.where(small_angles * nonzero)
+        small_angles = np.where(small_angles * nonzero)#排除掉零向量的情况，返回满足条件的索引,同样返回三维数组，分别对应nx,ny,nz的索引。
 
-        shortest_small_angles = np.argmin(np.linalg.norm(vectors[small_angles], axis=1))
-
+        shortest_small_angles = np.argmin(np.linalg.norm(vectors[small_angles], axis=1))#找出最短的基矢
+   
         new_vector = np.array(
             [
                 nx[small_angles[0][shortest_small_angles]],
                 ny[small_angles[1][shortest_small_angles]],
                 nz[small_angles[2][shortest_small_angles]],
             ]
-        )
+        )#把索引转换成和零点对应的值，作为坐标。
 
-        new_vector = np.sign(np.dot(new_vector, cell)[i]) * new_vector
+        new_vector = np.sign(np.dot(new_vector, cell)[i]) * new_vector #保证新基矢的方向与原基矢大致同向
         new_vectors.append(new_vector)
 
     cell = np.dot(new_vectors, np.array(cell))
@@ -929,7 +934,7 @@ def orthogonalize_cell(
         # even though `is_cell_orthogonal` (tol=1e-12) still correctly
         # reports the cell as non-orthogonal. This is a relative, not
         # absolute, effect: a 5000 A cell can carry noise up to ~1e-4 A and
-        # still trip it, while a 5 A cell only does so below ~1e-7 A. No
+        # still trip （触发）it, while a 5 A cell only does so below ~1e-7 A. No
         # repetition is needed in this case, just removal of the numerical
         # residual, so remove it by zeroing the off-diagonal components
         # directly, rather than falling through to the general repeat-and-cut
@@ -947,7 +952,7 @@ def orthogonalize_cell(
         # and correct; anything larger is guarded against below rather than
         # silently discarded.
         cell = np.array(atoms.cell, dtype=float)
-        off_diagonal = cell[~np.eye(3, dtype=bool)]
+        off_diagonal = cell[~np.eye(3, dtype=bool)] #结果是1维数组
         max_off_diagonal = np.max(np.abs(off_diagonal))
         relative_off_diagonal = max_off_diagonal / atoms.cell.lengths().max()
         if relative_off_diagonal > 1e-6:
